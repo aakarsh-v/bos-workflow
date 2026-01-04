@@ -1,0 +1,20 @@
+{
+  "default_order": ["BO1", "BO2", "BO4", "BO3", "BO5"],
+  "grade_thresholds": {
+    "A": 1.0,
+    "B": 0.5,
+    "C": 0.25,
+    "D": 0.0
+  },
+  "conditional_rules": [
+    {
+      "if": { "bo": "BO3", "grade": "D" },
+      "then": { "set_grade": { "bo": "BO4", "grade": "B" } }
+    }
+  ],
+  "priority_overrides": {
+    "explicit_order": ["BO2", "BO1", "BO4", "BO3", "BO5"],
+    "apply_only_when_all_D": true,
+    "evaluate_on_initial_grades": true
+  }
+}
