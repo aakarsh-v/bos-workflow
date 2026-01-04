@@ -214,7 +214,4 @@ To add new nodes:
 - The `onboarding` data is fetched but not currently used in calculations
 - Error handling can be enhanced for production use
 
-## License
-
-[Add your license information here]
 
