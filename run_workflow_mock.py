@@ -1,5 +1,11 @@
-from nodes.calculate_scores import calculate_scores
 from nodes.resolve_priority import prioritize
+from nodes.b01 import b01
+from nodes.b02 import b02
+from nodes.b03 import b03
+from nodes.b04 import b04
+from nodes.b05 import b05
+from nodes.merge_bo_results import merge_bo_results
+
 
 def run_mock():
     # Provide mocked metrics to avoid external API dependency
@@ -32,7 +38,13 @@ def run_mock():
         "final_priority_order": []
     }
 
-    state = calculate_scores(state)
+    # Simulate parallel partial updates by invoking each BO node
+    state = b01(state)
+    state = b02(state)
+    state = b03(state)
+    state = b04(state)
+    state = b05(state)
+    state = merge_bo_results(state)
     state = prioritize(state)
 
     print("BO Results:")
