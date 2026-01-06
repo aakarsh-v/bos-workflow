@@ -5,6 +5,6 @@ from state import AgentState
 
 
 def merge_bo_results(state: AgentState):
-    # Join point / synchronization node. Ensures bo_results exists and returns state.
-    state.setdefault("bo_results", {})
-    return state
+    # Join point / synchronization node. No-op partial return so orchestration
+    # can merge bo_results from parallel nodes without overwriting.
+    return {}

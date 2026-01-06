@@ -38,13 +38,25 @@ def run_mock():
         "final_priority_order": []
     }
 
-    # Simulate parallel partial updates by invoking each BO node
-    state = b01(state)
-    state = b02(state)
-    state = b03(state)
-    state = b04(state)
-    state = b05(state)
-    state = merge_bo_results(state)
+    # Simulate parallel partial updates by invoking each BO node and merging partials
+    def _merge(state, partial):
+        if not partial:
+            return state
+        for k, v in partial.items():
+            if k == "bo_results":
+                state.setdefault("bo_results", {}).update(v)
+            else:
+                state[k] = v
+        return state
+
+    for fn in (b01, b02, b03, b04, b05):
+        partial = fn(state)
+        state = _merge(state, partial)
+
+    # merge sync node
+    partial = merge_bo_results(state)
+    state = _merge(state, partial)
+
     state = prioritize(state)
 
     print("BO Results:")
