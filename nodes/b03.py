@@ -2,14 +2,47 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from state import AgentState
-
+from utils.config import get_config
 
 def b03(state: AgentState):
     metrics = state.get("raw_metrics", {})
     outstanding = metrics.get("outstanding", {})
+    perf = metrics.get("performance", {})
+    
+    config = get_config()
+    bo_conf = next((b for b in config.get("business_objectives", []) if b["bo_code"] == "BO3"), {})
+    
+    # Factor A: AR Quantum Control
+    # Benchmark = Last_Month_AR * (Sales_MTD / Last_Month_Sales)
+    last_month_ar = outstanding.get("last_month_ar", 100000) 
+    sales_mtd = perf.get("mtd_sales_value", 0)
+    last_month_sales = perf.get("last_month_sales", 1) # Prevent div/0
+    
+    if last_month_sales == 0: last_month_sales = 1
+    
+    target_ar_benchmark = last_month_ar * (sales_mtd / last_month_sales)
+    actual_ar = outstanding.get("outstanding_amount", 0)
+    
+    # For AR, Lower Actual is Better.
+    # To map this to a "Higher is Better" score (A >= 1.0):
+    # Score = Benchmark / Actual (If Actual < Benchmark, Score > 1.0, which is Good/Grade A)
+    if actual_ar > 0:
+        ratio_quantum = target_ar_benchmark / actual_ar
+    else:
+        ratio_quantum = 2.0 # Perfect score if 0 outstanding
+        
+    # Cap ratio (e.g. 0.5 to 1.5)
+    ratio_quantum = max(0.5, min(ratio_quantum, 1.5))
 
-    # BO3: AR / OUTSTANDING CONTROL
-    ratio = outstanding.get("outstanding_amount", 0) / 100000.0
+    # Factor B: Ageing (Simplified as we lack detailed ageing data in mock)
+    # Assuming 'ageing_index' is passed or defaults to 1.0 (neutral)
+    ratio_ageing = outstanding.get("ageing_index", 1.0)
 
-    state.setdefault("bo_results", {})["BO3"] = {"ratio": ratio}
+    # Combine: Multiply
+    final_ratio = ratio_quantum * ratio_ageing
+
+    state.setdefault("bo_results", {})["BO3"] = {
+        "ratio": final_ratio,
+        "quantum_ratio": ratio_quantum
+    }
     return state

@@ -1,20 +1,135 @@
 {
-  "default_order": ["BO1", "BO2", "BO4", "BO3", "BO5"],
-  "grade_thresholds": {
-    "A": 1.0,
-    "B": 0.5,
-    "C": 0.25,
-    "D": 0.0
+  "config_meta": {
+    "enterprise_name": "DeHaat",
+    "config_version": "V1_PL_SALES_FOCUS",
+    "validity": {
+      "start_date": "2025-01-01",
+      "end_date": "2025-03-31"
+    }
   },
-  "conditional_rules": [
+  "business_objectives": [
     {
-      "if": { "bo": "BO3", "grade": "D" },
-      "then": { "set_grade": { "bo": "BO4", "grade": "B" } }
+      "bo_code": "BO1",
+      "bo_name": "Private Label Sales",
+      "enabled": true,
+      "benchmark": {
+        "growth_multiplier": 2.0,
+        "historical_window_months": 12
+      },
+      "grading": {
+        "thresholds": { "A": 1.0, "B": 0.5, "C": 0.25, "D": 0.0 }
+      }
+    },
+    {
+      "bo_code": "BO2",
+      "bo_name": "DC Check-ins",
+      "enabled": true,
+      "factors": [
+        {
+          "factor_code": "B2A",
+          "factor_name": "Unique DC Coverage",
+          "benchmark": { "multiplier": 1.5 }
+        },
+        {
+          "factor_code": "B2B",
+          "factor_name": "Absolute Check-ins",
+          "benchmark": { "multiplier": 1.25 }
+        }
+      ],
+      "combine_logic": {
+        "method": "MULTIPLY",
+        "cap_each_factor_at": 1.5
+      },
+      "grading": {
+        "thresholds": { "A": 1.0, "B": 0.7, "C": 0.4, "D": 0.0 }
+      }
+    },
+    {
+      "bo_code": "BO3",
+      "bo_name": "AR Control",
+      "enabled": true,
+      "factors": [
+        {
+          "factor_code": "B3A",
+          "factor_name": "AR Quantum Control",
+          "cap_ratio_range": [0.5, 1.5]
+        },
+        {
+          "factor_code": "B3B",
+          "factor_name": "Ageing Risk",
+          "benchmark": {
+             "weights": { "0_30": 0.2, "31_60": 0.5, "61_90": 0.8, "90_PLUS": 1.0 }
+          }
+        }
+      ],
+      "combine_logic": {
+        "method": "MULTIPLY",
+        "cap_each_factor_at": 1.5
+      },
+      "grading": {
+        "thresholds": { "A": 1.0, "B": 0.75, "C": 0.5, "D": 0.0 }
+      }
+    },
+    {
+      "bo_code": "BO4",
+      "bo_name": "Overall Sales",
+      "enabled": true,
+      "factors": [
+        {
+          "factor_code": "B4A",
+          "factor_name": "Sales Velocity",
+          "benchmark": { "multiplier": 1.15 }
+        },
+        {
+          "factor_code": "B4B",
+          "factor_name": "Sales Spread",
+          "benchmark": { "total_dcs_multiplier": 0.6, "active_dcs_multiplier": 1.2 }
+        }
+      ],
+      "combine_logic": {
+        "method": "MULTIPLY",
+        "cap_each_factor_at": 1.5
+      },
+      "grading": {
+        "thresholds": { "A": 1.0, "B": 0.75, "C": 0.5, "D": 0.0 }
+      }
+    },
+    {
+      "bo_code": "BO5",
+      "bo_name": "Market Development",
+      "enabled": true,
+      "factors": [
+        {
+          "factor_code": "B5A",
+          "factor_name": "Farmer Meetings",
+          "benchmark": { "pl_dcs_multiplier": 0.25, "cap": 6 }
+        },
+        {
+          "factor_code": "B5B",
+          "factor_name": "New DC Onboarding",
+          "benchmark": { "total_dcs_multiplier": 0.02, "min_floor": 1 }
+        }
+      ],
+      "combine_logic": {
+        "method": "WEIGHTED_SUM",
+        "weights": { "B5A": 0.6, "B5B": 0.4 }
+      },
+      "grading": {
+        "thresholds": { "A": 1.0, "B": 0.7, "C": 0.4, "D": 0.0 }
+      }
     }
   ],
-  "priority_overrides": {
-    "explicit_order": ["BO2", "BO1", "BO4", "BO3", "BO5"],
-    "apply_only_when_all_D": true,
-    "evaluate_on_initial_grades": true
+  "priority_rules": {
+    "default_priority_order": ["BO1", "BO2", "BO4", "BO3", "BO5"],
+    "conditional_rules": [
+      {
+        "if": { "bo_code": "BO3", "grade": "D" },
+        "then": { "action": "CAP_GRADE", "target_bo": "BO4", "cap_to": "B" }
+      },
+      {
+        "if": { "all_bos_grade": "D" },
+        "then": { "priority_override": ["BO2", "BO1", "BO4", "BO3", "BO5"] }
+      }
+    ]
   }
 }
