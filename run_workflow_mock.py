@@ -12,10 +12,14 @@ from nodes.b04 import b04
 from nodes.b05 import b05
 from nodes.merge_bo_results import merge_bo_results
 
-# load env for optional tracing integrations (e.g. LANGSMITH_API_KEY)
+# load env for optional tracing integrations (e.g. LANGCHAIN_API_KEY or LANGSMITH_API_KEY)
+# load_dotenv() loads from .env file in current directory or parent directories
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("workflow-mock")
+
+# Note: This mock workflow does NOT use LangGraph, so it won't generate LangSmith traces.
+# Use main.py for LangGraph-based workflows that will generate traces.
 
 
 def _save_state(state: dict, thread_id: str, path: str = None):
@@ -90,6 +94,8 @@ def run_mock():
         print(f"  {bo}: ratio={data.get('ratio'):.4f}, grade={data.get('grade')}")
 
     print("Final priority order:", state.get("final_priority_order"))
+    
+    return state
 
 
 if __name__ == "__main__":
@@ -98,44 +104,11 @@ if __name__ == "__main__":
     p.add_argument("--persist-path", default=None, help="optional path to save state snapshot (JSON)")
     args = p.parse_args()
 
-    logger.info("LangSmith API key present: %s", bool(os.environ.get("LANGSMITH_API_KEY")))
-    run_mock()
-    # write out a snapshot for persistence/troubleshooting
-    # Note: run_mock updates local variable `state` only inside function; call run_mock and then save
-    # To get the final state we re-run but return state (quick and simple change)
-    final_state = None
-    def run_and_return():
-        # replicate run_mock but return final state
-        state = {
-            "agent_id": "123",
-            "date": "2024-01-01",
-            "raw_metrics": {
-                "performance": {"mtd_sales_value": 30.0, "active_days_mtd": 10, "mtd_order_count": 20, "last12m_order_count": 200},
-                "dc_activity": {"unique_dcs_visited": 5, "total_dcs": 20, "check_ins_count": 10, "expected_check_ins": 20},
-                "outstanding": {"outstanding_amount": 50000},
-                "onboarding": {"new_retailers_mtd": 2, "new_retailers_last_month": 4, "new_retailers_last12m": 20}
-            },
-            "bo_results": {},
-            "final_priority_order": []
-        }
-        def _merge(state, partial):
-            if not partial:
-                return state
-            for k, v in partial.items():
-                if k == "bo_results":
-                    state.setdefault("bo_results", {}).update(v)
-                else:
-                    state[k] = v
-            return state
-        for fn in (b01, b02, b03, b04, b05):
-            partial = fn(state)
-            state = _merge(state, partial)
-        state = _merge(state, merge_bo_results(state))
-        state = prioritize(state)
-        return state
-
-    final_state = run_and_return()
+    # Check for LangSmith/LangChain API key (LangSmith uses LANGCHAIN_API_KEY)
+    api_key = os.environ.get("LANGCHAIN_API_KEY") or os.environ.get("LANGSMITH_API_KEY")
+    tracing_enabled = os.getenv("LANGCHAIN_TRACING_V2", "").lower() in ("true", "1", "yes")
+    logger.info("LangSmith/LangChain API key present: %s", bool(api_key))
+    logger.info("Note: Mock workflows don't use LangGraph, so they won't generate LangSmith traces.")
+    logger.info("Use 'python main.py' for workflows that generate LangSmith traces.")
+    final_state = run_mock()
     _save_state(final_state, args.thread_id, args.persist_path)
-
-if __name__ == "__main__":
-    run_mock()

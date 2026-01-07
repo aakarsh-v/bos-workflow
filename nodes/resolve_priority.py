@@ -26,27 +26,37 @@ def prioritize(state: AgentState):
     initial_grades = {}
     for bo, data in results.items():
         ratio = data.get("ratio", 0)
-        g = _assign_grade_from_thresholds(ratio, grade_thresholds)
+        # Get thresholds from BO config if available, otherwise use global
+        bo_conf = next((b for b in cfg.get("business_objectives", []) if b["bo_code"] == bo), {})
+        bo_thresholds = bo_conf.get("grading", {}).get("thresholds", grade_thresholds)
+        g = _assign_grade_from_thresholds(ratio, bo_thresholds)
         data["grade"] = g
         initial_grades[bo] = g
 
     # 2. Apply Conditional Priority Rules from config
-    for rule in cfg.get("conditional_rules", []):
+    priority_rules = cfg.get("priority_rules", {})
+    for rule in priority_rules.get("conditional_rules", []):
         cond = rule.get("if", {})
         then = rule.get("then", {})
-        cond_bo = cond.get("bo")
+        cond_bo = cond.get("bo") or cond.get("bo_code")
         cond_grade = cond.get("grade")
         if cond_bo and results.get(cond_bo, {}).get("grade") == cond_grade:
-            # support set_grade action
+            # support set_grade action or CAP_GRADE action
             set_grade = then.get("set_grade")
             if set_grade:
                 tgt = set_grade.get("bo")
                 g = set_grade.get("grade")
                 if tgt and tgt in results:
                     results[tgt]["grade"] = g
+            # support CAP_GRADE action from config
+            elif then.get("action") == "CAP_GRADE":
+                tgt = then.get("target_bo")
+                g = then.get("cap_to")
+                if tgt and tgt in results and g:
+                    results[tgt]["grade"] = g
 
     # 3. Determine default order and grade priority mapping
-    default_order = cfg.get("default_order", cfg.get("default_order", ["BO1", "BO2", "BO4", "BO3", "BO5"]))
+    default_order = priority_rules.get("default_priority_order", cfg.get("default_order", ["BO1", "BO2", "BO4", "BO3", "BO5"]))
 
     # Build grade ordering: lower grades first (D, C, B, A) for prioritization
     # We derive order by sorting thresholds ascending
@@ -63,9 +73,26 @@ def prioritize(state: AgentState):
     )
 
     # 4. Apply explicit priority override if configured
+    # Check for priority_override in conditional rules first
+    explicit = None
+    for rule in priority_rules.get("conditional_rules", []):
+        then = rule.get("then", {})
+        if then.get("priority_override"):
+            explicit = then.get("priority_override")
+            break
+    
+    # Fallback to priority_overrides section if exists
     po = cfg.get("priority_overrides", {})
-    explicit = po.get("explicit_order", []) or []
-    apply_only_when_all_D = po.get("apply_only_when_all_D", False)
+    if explicit is None:
+        explicit = po.get("explicit_order", []) or []
+    
+    apply_only_when_all_D = False
+    # Check if we should apply only when all D
+    for rule in priority_rules.get("conditional_rules", []):
+        cond = rule.get("if", {})
+        if cond.get("all_bos_grade") == "D":
+            apply_only_when_all_D = True
+            break
 
     def _all_grades_are_D(res):
         return all((res.get(bo, {}).get("grade") == "D") for bo in res.keys())

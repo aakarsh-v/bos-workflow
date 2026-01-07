@@ -1,8 +1,19 @@
 import os
 from dotenv import load_dotenv
 
-# 1. Load Environment variables (Enables LangSmith Tracing)
+# 1. Load Environment variables FIRST (before any LangGraph imports)
+# This is critical for LangSmith tracing to work
 load_dotenv()
+
+# Verify tracing is enabled
+tracing_enabled = os.getenv("LANGCHAIN_TRACING_V2", "").lower() in ("true", "1", "yes")
+api_key = os.getenv("LANGCHAIN_API_KEY") or os.getenv("LANGSMITH_API_KEY")
+project = os.getenv("LANGCHAIN_PROJECT", "bos-workflow")
+
+if tracing_enabled and api_key:
+    print(f"[OK] LangSmith tracing enabled for project: {project}")
+else:
+    print("[WARNING] LangSmith tracing not enabled. Set LANGCHAIN_TRACING_V2=true and LANGCHAIN_API_KEY in .env")
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver  # Use in-memory saver for now
@@ -74,6 +85,8 @@ if __name__ == "__main__":
 
     try:
         print("Starting persistent workflow...")
+        # LangGraph automatically sends traces to LangSmith when env vars are set
+        # Traces will appear in the project specified by LANGCHAIN_PROJECT
         # invoke now takes the config argument
         result = app.invoke(initial_state, config=config)
         

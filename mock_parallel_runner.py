@@ -14,9 +14,13 @@ from nodes.b05 import b05
 from nodes.merge_bo_results import merge_bo_results
 from nodes.resolve_priority import prioritize
 
+# load env for optional tracing integrations (e.g. LANGCHAIN_API_KEY or LANGSMITH_API_KEY)
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("mock-parallel-runner")
+
+# Note: This mock workflow does NOT use LangGraph, so it won't generate LangSmith traces.
+# Use main.py for LangGraph-based workflows that will generate traces.
 
 
 def _merge_into(state: dict, partial: dict, lock: threading.Lock):
@@ -81,7 +85,12 @@ def run_parallel_mock(thread_id: str = "session_1", persist_path: str = None):
     lock = threading.Lock()
     funcs = [b01, b02, b03, b04, b05]
 
-    logger.info("LangSmith API key present: %s", bool(os.environ.get("LANGSMITH_API_KEY")))
+    # Check for LangSmith/LangChain API key (LangSmith uses LANGCHAIN_API_KEY)
+    api_key = os.environ.get("LANGCHAIN_API_KEY") or os.environ.get("LANGSMITH_API_KEY")
+    tracing_enabled = os.getenv("LANGCHAIN_TRACING_V2", "").lower() in ("true", "1", "yes")
+    logger.info("LangSmith/LangChain API key present: %s", bool(api_key))
+    logger.info("Note: Mock workflows don't use LangGraph, so they won't generate LangSmith traces.")
+    logger.info("Use 'python main.py' for workflows that generate LangSmith traces.")
 
     with ThreadPoolExecutor(max_workers=5) as ex:
         futures = {ex.submit(fn, state): fn.__name__ for fn in funcs}
