@@ -1,0 +1,64 @@
+{
+  "agent_id": "123",
+  "date": "2024-01-01",
+  "raw_metrics": {
+    "performance": {
+      "mtd_sales_value": 30.0,
+      "active_days_mtd": 10,
+      "mtd_order_count": 20,
+      "last12m_order_count": 200
+    },
+    "dc_activity": {
+      "unique_dcs_visited": 5,
+      "total_dcs": 20,
+      "check_ins_count": 10,
+      "expected_check_ins": 20
+    },
+    "outstanding": {
+      "outstanding_amount": 50000
+    },
+    "onboarding": {
+      "new_retailers_mtd": 2,
+      "new_retailers_last_month": 4,
+      "new_retailers_last12m": 20
+    }
+  },
+  "bo_results": {
+    "BO1": {
+      "ratio": 0.75,
+      "actual": 30.0,
+      "benchmark": 40.0,
+      "grade": "B"
+    },
+    "BO2": {
+      "ratio": 0.05,
+      "coverage_ratio": 0.25,
+      "effort_ratio": 0.2,
+      "grade": "D"
+    },
+    "BO3": {
+      "ratio": 1.5,
+      "quantum_ratio": 1.5,
+      "grade": "A"
+    },
+    "BO4": {
+      "ratio": 0.0,
+      "velocity": 1.5,
+      "spread": 0.0,
+      "grade": "D"
+    },
+    "BO5": {
+      "ratio": 0.8,
+      "meeting_ratio": 0.0,
+      "onboarding_ratio": 2.0,
+      "grade": "B"
+    }
+  },
+  "final_priority_order": [
+    "BO2",
+    "BO4",
+    "BO1",
+    "BO5",
+    "BO3"
+  ]
+}

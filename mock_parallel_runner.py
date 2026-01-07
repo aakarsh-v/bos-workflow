@@ -1,5 +1,10 @@
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import argparse
+import json
+import logging
+import os
+from dotenv import load_dotenv
 
 from nodes.b01 import b01
 from nodes.b02 import b02
@@ -8,6 +13,10 @@ from nodes.b04 import b04
 from nodes.b05 import b05
 from nodes.merge_bo_results import merge_bo_results
 from nodes.resolve_priority import prioritize
+
+load_dotenv()
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger("mock-parallel-runner")
 
 
 def _merge_into(state: dict, partial: dict, lock: threading.Lock):
@@ -21,7 +30,18 @@ def _merge_into(state: dict, partial: dict, lock: threading.Lock):
                 state[k] = v
 
 
-def run_parallel_mock():
+def _save_state(state: dict, thread_id: str, path: str = None):
+    if path is None:
+        path = f"mock_parallel_state_{thread_id}.json"
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(state, fh, indent=2, ensure_ascii=False)
+        logger.info("Saved parallel-run state to %s", path)
+    except Exception as e:
+        logger.warning("Failed to save parallel-run state: %s", e)
+
+
+def run_parallel_mock(thread_id: str = "session_1", persist_path: str = None):
     state = {
         "agent_id": "123",
         "date": "2024-01-01",
@@ -61,6 +81,8 @@ def run_parallel_mock():
     lock = threading.Lock()
     funcs = [b01, b02, b03, b04, b05]
 
+    logger.info("LangSmith API key present: %s", bool(os.environ.get("LANGSMITH_API_KEY")))
+
     with ThreadPoolExecutor(max_workers=5) as ex:
         futures = {ex.submit(fn, state): fn.__name__ for fn in funcs}
         for fut in as_completed(futures):
@@ -68,8 +90,9 @@ def run_parallel_mock():
             try:
                 partial = fut.result()
             except Exception as e:
-                print(f"Node {futures[fut]} raised: {e}")
+                logger.exception("Node %s raised: %s", futures[fut], e)
             if partial:
+                logger.info("Merging partial from %s", futures[fut])
                 _merge_into(state, partial, lock)
 
     # merge sync node (no-op here but kept for parity)
@@ -79,11 +102,18 @@ def run_parallel_mock():
     # finalize priorities
     state = prioritize(state)
 
-    print("BO Results:")
+    logger.info("BO Results:")
     for bo, data in state.get("bo_results", {}).items():
-        print(f"  {bo}: ratio={data.get('ratio'):.4f}, grade={data.get('grade')}")
-    print("Final priority order:", state.get("final_priority_order"))
+        logger.info("  %s: ratio=%.4f, grade=%s", bo, data.get("ratio", 0.0), data.get("grade"))
+    logger.info("Final priority order: %s", state.get("final_priority_order"))
+
+    # persist snapshot
+    _save_state(state, thread_id, persist_path)
 
 
 if __name__ == "__main__":
-    run_parallel_mock()
+    p = argparse.ArgumentParser(description="Run mock parallel workflow with optional persistence/tracing")
+    p.add_argument("--thread-id", default=os.environ.get("THREAD_ID", "session_1"), help="thread/session id to tag persisted state")
+    p.add_argument("--persist-path", default=None, help="optional path to save state snapshot (JSON)")
+    args = p.parse_args()
+    run_parallel_mock(args.thread_id, args.persist_path)

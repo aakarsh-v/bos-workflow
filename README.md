@@ -58,12 +58,30 @@ biz_objective_workflow/
 
    You can verify all endpoints are available by visiting `http://127.0.0.1:8000/docs` in your browser.
 
-2. **Run the workflow**:
-   ```bash
+2. **Run the workflow (production / full graph)**:
+   ```powershell
    python main.py
    ```
 
-   The script will execute with example data (agent_id: "123", date: "2024-01-01").
+   Note: `main.py` currently uses an in-memory checkpointer (`MemorySaver`) for development. To persist state to a SQLite file instead, edit `main.py` and replace the in-memory saver with `SqliteSaver.from_conn_string("bos_state.db")`.
+
+3. **Run the sequential mock runner (quick local run, with optional JSON snapshot)**:
+   ```powershell
+   python run_workflow_mock.py --thread-id session_1 --persist-path .\mock_state_session_1.json
+   ```
+
+4. **Run the parallel mock runner (simulates concurrent BO nodes, with optional JSON snapshot)**:
+   ```powershell
+   python mock_parallel_runner.py --thread-id session_1 --persist-path .\mock_parallel_state_session_1.json
+   ```
+
+5. **Enable tracing integrations (optional)**
+
+   To enable LangSmith tracing (or other tracing integrations), set the API key in your environment or `.env` file:
+   ```powershell
+   $Env:LANGSMITH_API_KEY = "your_langsmith_key_here"
+   ```
+   The runners and `main.py` check for `LANGSMITH_API_KEY` and will log its presence; configure the tracing SDK as needed for your environment.
 
 ### Using the Workflow Programmatically
 

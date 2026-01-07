@@ -1,12 +1,41 @@
 {
   "config_meta": {
     "enterprise_name": "DeHaat",
-    "config_version": "V1_PL_SALES_FOCUS",
+    "industry": "Agritech",
+    "config_version": "DEHAAT_V1_PL_SALES_FOCUS",
+
+    "applicability": {
+      "states": ["MH", "MP"],
+      "roles": ["SALES_EXECUTIVE"],
+      "districts": ["*"]
+    },
+
     "validity": {
       "start_date": "2025-01-01",
       "end_date": "2025-03-31"
+    },
+
+    "governance": {
+      "status": "APPROVED",
+      "created_by": {
+        "user_id": "sales_ops_12",
+        "role": "SALES_OPS"
+      },
+      "approved_by": [
+        {
+          "user_id": "finance_head_3",
+          "role": "FINANCE_HEAD"
+        },
+        {
+          "user_id": "regional_sales_head_7",
+          "role": "REGIONAL_SALES_HEAD"
+        }
+      ],
+      "approved_at": "2024-12-28T18:20:00Z",
+      "reason_for_change": "Standard Operations – Kharif Season"
     }
   },
+
   "business_objectives": [
     {
       "bo_code": "BO1",
@@ -58,7 +87,12 @@
           "factor_code": "B3B",
           "factor_name": "Ageing Risk",
           "benchmark": {
-             "weights": { "0_30": 0.2, "31_60": 0.5, "61_90": 0.8, "90_PLUS": 1.0 }
+            "weights": {
+              "0_30": 0.2,
+              "31_60": 0.5,
+              "61_90": 0.8,
+              "90_PLUS": 1.0
+            }
           }
         }
       ],
@@ -83,7 +117,10 @@
         {
           "factor_code": "B4B",
           "factor_name": "Sales Spread",
-          "benchmark": { "total_dcs_multiplier": 0.6, "active_dcs_multiplier": 1.2 }
+          "benchmark": {
+            "total_dcs_multiplier": 0.6,
+            "active_dcs_multiplier": 1.2
+          }
         }
       ],
       "combine_logic": {
@@ -102,33 +139,49 @@
         {
           "factor_code": "B5A",
           "factor_name": "Farmer Meetings",
-          "benchmark": { "pl_dcs_multiplier": 0.25, "cap": 6 }
+          "benchmark": {
+            "pl_dcs_multiplier": 0.25,
+            "cap": 6
+          }
         },
         {
           "factor_code": "B5B",
           "factor_name": "New DC Onboarding",
-          "benchmark": { "total_dcs_multiplier": 0.02, "min_floor": 1 }
+          "benchmark": {
+            "total_dcs_multiplier": 0.02,
+            "min_floor": 1
+          }
         }
       ],
       "combine_logic": {
         "method": "WEIGHTED_SUM",
-        "weights": { "B5A": 0.6, "B5B": 0.4 }
+        "weights": {
+          "B5A": 0.6,
+          "B5B": 0.4
+        }
       },
       "grading": {
         "thresholds": { "A": 1.0, "B": 0.7, "C": 0.4, "D": 0.0 }
       }
     }
   ],
+
   "priority_rules": {
     "default_priority_order": ["BO1", "BO2", "BO4", "BO3", "BO5"],
     "conditional_rules": [
       {
         "if": { "bo_code": "BO3", "grade": "D" },
-        "then": { "action": "CAP_GRADE", "target_bo": "BO4", "cap_to": "B" }
+        "then": {
+          "action": "CAP_GRADE",
+          "target_bo": "BO4",
+          "cap_to": "B"
+        }
       },
       {
         "if": { "all_bos_grade": "D" },
-        "then": { "priority_override": ["BO2", "BO1", "BO4", "BO3", "BO5"] }
+        "then": {
+          "priority_override": ["BO2", "BO1", "BO4", "BO3", "BO5"]
+        }
       }
     ]
   }
