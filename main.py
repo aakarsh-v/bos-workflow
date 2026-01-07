@@ -5,18 +5,57 @@ from dotenv import load_dotenv
 # This is critical for LangSmith tracing to work
 load_dotenv()
 
-# Verify tracing is enabled
+# Verify tracing is enabled (AIarm account)
 tracing_enabled = os.getenv("LANGCHAIN_TRACING_V2", "").lower() in ("true", "1", "yes")
 api_key = os.getenv("LANGCHAIN_API_KEY") or os.getenv("LANGSMITH_API_KEY")
-project = os.getenv("LANGCHAIN_PROJECT", "bos-workflow")
+project = os.getenv("LANGCHAIN_PROJECT", "bos-workflow-aiarm")
 
 if tracing_enabled and api_key:
-    print(f"[OK] LangSmith tracing enabled for project: {project}")
+    print(f"[OK] LangSmith tracing enabled for project: {project} (AIarm account)")
 else:
     print("[WARNING] LangSmith tracing not enabled. Set LANGCHAIN_TRACING_V2=true and LANGCHAIN_API_KEY in .env")
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver  # Use in-memory saver for now
+
+# 2. Setup Persistence - Use Postgres for production
+# Fallback to MemorySaver if Postgres not configured
+try:
+    # Try different import paths for PostgresSaver
+    try:
+        from langgraph.checkpoint.postgres import PostgresSaver
+    except ImportError:
+        # Alternative import path (if package structure differs)
+        from langgraph_checkpoint_postgres import PostgresSaver
+    
+    # Get Postgres connection string from environment
+    postgres_conn = os.getenv("POSTGRES_CONNECTION_STRING")
+    
+    if postgres_conn:
+        # Initialize Postgres checkpointer
+        checkpointer = PostgresSaver.from_conn_string(postgres_conn)
+        print(f"[OK] Postgres persistence enabled: {os.getenv('POSTGRES_DB', 'bos_workflow_db')}")
+    else:
+        # Fallback: construct from individual env vars
+        postgres_host = os.getenv("POSTGRES_HOST", "localhost")
+        postgres_port = os.getenv("POSTGRES_PORT", "5432")
+        postgres_db = os.getenv("POSTGRES_DB", "bos_workflow_db")
+        postgres_user = os.getenv("POSTGRES_USER", "postgres")
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        
+        if postgres_password:
+            conn_string = f"postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
+            checkpointer = PostgresSaver.from_conn_string(conn_string)
+            print(f"[OK] Postgres persistence enabled: {postgres_db}")
+        else:
+            raise ValueError("Postgres password not set")
+            
+except (ImportError, ValueError, Exception) as e:
+    # Fallback to in-memory if Postgres not available
+    from langgraph.checkpoint.memory import MemorySaver
+    checkpointer = MemorySaver()
+    print(f"[WARNING] Postgres persistence not available, using in-memory: {e}")
+    print("  Install: pip install langgraph-checkpoint-postgres psycopg2-binary")
+    print("  Set POSTGRES_CONNECTION_STRING or POSTGRES_* env vars to enable Postgres persistence")
 
 from state import AgentState
 from nodes.fetch_data import fetch_data
@@ -30,11 +69,7 @@ from nodes.b04 import b04
 from nodes.b05 import b05
 from nodes.merge_bo_results import merge_bo_results
 
-# 2. Setup Persistence
-# Use in-memory persistence for development/testing. Switch to SqliteSaver
-# when you want durable DB-backed persistence.
-memory = MemorySaver()
-
+# 3. Create Workflow Graph
 workflow = StateGraph(AgentState)
 
 # Add Nodes
@@ -65,9 +100,9 @@ workflow.add_edge("b05", "merge_bo_results")
 workflow.add_edge("merge_bo_results", "prioritize")
 workflow.add_edge("prioritize", END)
 
-# 3. Compile with Checkpointer
-# This enables the "persistence" requirement
-app = workflow.compile(checkpointer=memory)
+# 4. Compile with Checkpointer
+# This enables the "persistence" requirement for resume/replay/debugging
+app = workflow.compile(checkpointer=checkpointer)
 
 if __name__ == "__main__":
     # Example usage with Persistence

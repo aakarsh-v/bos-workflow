@@ -3,5 +3,6 @@ requests>=2.31.0
 langsmith              # Required for Tracing
 python-dotenv          # Required to load API keys securely
 langgraph-checkpoint   # Required for Persistence (if using separate package)
-langgraph-checkpoint-sqlite # Recommended for saving state to a DB file
+langgraph-checkpoint-postgres # Required for Postgres persistence
+psycopg2-binary        # PostgreSQL adapter for Python
 
